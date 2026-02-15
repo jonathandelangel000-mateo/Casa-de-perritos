@@ -12,7 +12,6 @@
         .formulario, .lista { background: white; padding: 20px; border-radius: 15px; max-width: 450px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         input, textarea, select { width: 90%; margin: 10px 0; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
         
-        /* Estilos del Botón de Subir Foto */
         .btn-foto { background: #9C27B0; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
         .preview-img { max-width: 150px; display: none; margin: 10px auto; border-radius: 8px; border: 2px solid #ddd; }
 
@@ -30,17 +29,19 @@
     <div class="formulario">
         <h2 id="titulo-form">Añadir Nuevo Perrito 🐕</h2>
         
-        <input type="text" id="nombre" placeholder="Nombre">
+        <input type="text" id="nombre" placeholder="Nombre del perrito">
+        
+        <input type="text" id="raza" placeholder="Raza (ej: Mestizo, Labrador)">
+        
         <input type="text" id="edad" placeholder="Edad (ej: 6 meses)">
         <select id="sexo">
             <option value="Macho ♂️">Macho ♂️</option>
             <option value="Hembra ♀️">Hembra ♀️</option>
         </select>
-        <textarea id="desc" placeholder="Descripción"></textarea>
+        <textarea id="desc" placeholder="Descripción (Personalidad, historia...)"></textarea>
         
         <button type="button" id="upload_widget" class="btn-foto">📸 Subir Foto</button>
         <img id="imagen_previa" class="preview-img" src="">
-        
         <input type="hidden" id="urlFoto">
         
         <button id="btnPublicar" class="btn-subir">Publicar en la Web</button>
@@ -70,9 +71,10 @@
         const db = getFirestore(app);
         let idEdicion = null;
 
-        // 1. FUNCIÓN PUBLICAR (Modificada para validar foto)
+        // 1. FUNCIÓN PUBLICAR (CON RAZA)
         document.getElementById('btnPublicar').onclick = async () => {
             const nombre = document.getElementById('nombre').value;
+            const raza = document.getElementById('raza').value; // Capturamos Raza
             const urlFoto = document.getElementById('urlFoto').value;
 
             if(!nombre) return alert("Escribe el nombre");
@@ -81,6 +83,7 @@
             try {
                 await addDoc(collection(db, "perritos"), {
                     nombre: nombre,
+                    raza: raza || "Mestizo", // Si no ponen nada, se guarda como Mestizo
                     edad: document.getElementById('edad').value,
                     sexo: document.getElementById('sexo').value,
                     desc: document.getElementById('desc').value,
@@ -92,7 +95,7 @@
             } catch (e) { alert("Error: " + e); }
         };
 
-        // 2. MOSTRAR LISTA
+        // 2. MOSTRAR LISTA (CON RAZA)
         onSnapshot(collection(db, "perritos"), (snapshot) => {
             const divLista = document.getElementById('lista-admin');
             divLista.innerHTML = '';
@@ -101,14 +104,18 @@
                 const idDoc = res.id;
                 const divPerro = document.createElement('div');
                 divPerro.className = 'item-perro';
-                // Agregué una miniatura de la foto en la lista
+                
+                // Muestra Nombre - Raza - Sexo
                 divPerro.innerHTML = `
                     <div style="display:flex; align-items:center; gap:10px;">
                         <img src="${perro.fotoUrl}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
-                        <span><strong>${perro.nombre}</strong> - ${perro.sexo || 'Sin definir'}</span>
+                        <div>
+                            <strong>${perro.nombre}</strong> <small>(${perro.raza || 'Mestizo'})</small><br>
+                            <span style="font-size:12px; color:grey;">${perro.sexo || 'Sin definir'}</span>
+                        </div>
                     </div>
                     <div class="acciones">
-                        <button class="btn-editar" onclick="prepararEdicion('${idDoc}', '${perro.nombre}', '${perro.edad}', '${perro.sexo}', '${perro.desc}', '${perro.fotoUrl}')">Editar</button>
+                        <button class="btn-editar" onclick="prepararEdicion('${idDoc}', '${perro.nombre}', '${perro.raza || ''}', '${perro.edad}', '${perro.sexo}', '${perro.desc}', '${perro.fotoUrl}')">Editar</button>
                         <button class="btn-borrar" onclick="eliminarPerro('${idDoc}', '${perro.nombre}')">Eliminar</button>
                     </div>
                 `;
@@ -116,15 +123,15 @@
             });
         });
 
-        // 3. EDITAR
-        window.prepararEdicion = (id, nombre, edad, sexo, desc, foto) => {
+        // 3. EDITAR (CON RAZA)
+        window.prepararEdicion = (id, nombre, raza, edad, sexo, desc, foto) => {
             idEdicion = id;
             document.getElementById('nombre').value = nombre;
+            document.getElementById('raza').value = raza; // Cargamos Raza
             document.getElementById('edad').value = edad;
             document.getElementById('sexo').value = sexo || "Macho ♂️";
             document.getElementById('desc').value = desc;
             
-            // Cargar foto en el input oculto y mostrar preview
             document.getElementById('urlFoto').value = foto;
             let preview = document.getElementById('imagen_previa');
             preview.src = foto;
@@ -137,12 +144,13 @@
             window.scrollTo(0,0);
         };
 
-        // 4. ACTUALIZAR
+        // 4. ACTUALIZAR (CON RAZA)
         document.getElementById('btnActualizar').onclick = async () => {
             try {
                 const perroRef = doc(db, "perritos", idEdicion);
                 await updateDoc(perroRef, {
                     nombre: document.getElementById('nombre').value,
+                    raza: document.getElementById('raza').value, // Actualizamos Raza
                     edad: document.getElementById('edad').value,
                     sexo: document.getElementById('sexo').value,
                     desc: document.getElementById('desc').value,
@@ -162,8 +170,8 @@
         function limpiarFormulario() {
             idEdicion = null;
             document.querySelectorAll('input, textarea').forEach(i => i.value = "");
-            document.getElementById('urlFoto').value = ""; // Limpiar link oculto
-            document.getElementById('imagen_previa').style.display = "none"; // Ocultar foto
+            document.getElementById('urlFoto').value = ""; 
+            document.getElementById('imagen_previa').style.display = "none"; 
             
             document.getElementById('titulo-form').innerText = "Añadir Nuevo Perrito 🐕";
             document.getElementById('btnPublicar').style.display = "block";
@@ -187,11 +195,7 @@
         }, (error, result) => { 
             if (!error && result && result.event === "success") { 
                 console.log('Imagen subida! Link:', result.info.secure_url);
-                
-                // 1. Guardamos el link en el input oculto
                 document.getElementById("urlFoto").value = result.info.secure_url;
-                
-                // 2. Mostramos la foto en pantalla
                 var previa = document.getElementById("imagen_previa");
                 previa.src = result.info.secure_url;
                 previa.style.display = "block";
